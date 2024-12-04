@@ -1,0 +1,12 @@
+# Source: https://www.kaggle.com/datasets/kwentar/blur-dataset
+# Resized to 300px with image_utils.resize_images_in_folder
+# Labels: (sharp, defocused_blurred, motion_blurred) -> (sharp, blurred)
+# .../data
+uri: "kaggle_kwentar_blur_dataset/blur_dataset_resized_300"
+class_names: # order/index dictates label
+  - sharp # 0
+  - blurred # 1
+folder_labels: # folder-name -> class label mapping
+  sharp: 0
+  defocused_blurred: 1
+  motion_blurred: 1

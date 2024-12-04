@@ -1,0 +1,11 @@
+# conda env create -f conda.yaml
+# conda activate multimodal
+name: multimodal
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+      - pip-tools

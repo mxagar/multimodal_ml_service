@@ -1,0 +1,42 @@
+modelpath: "blur_model_gradients.pkl"
+transformerspath: "blur_transformers_gradients.yaml"
+metric: "f1"
+hyperparameters:
+  nested: true
+  values:
+    xgb:
+      objective: binary:logistic
+      eval_metric: logloss
+      n_estimators:
+        suggest: int
+        low: 50
+        high: 300
+      max_depth:
+        suggest: int
+        low: 3
+        high: 10
+      learning_rate:
+        suggest: float
+        low: 0.01
+        high: 0.3
+        log: true
+      subsample:
+        suggest: float
+        low: 0.5
+        high: 1.0
+      colsample_bytree:
+        suggest: float
+        low: 0.5
+        high: 1.0
+      gamma:
+        suggest: float
+        low: 0
+        high: 5
+      reg_alpha:
+        suggest: float
+        low: 0
+        high: 5
+      reg_lambda:
+        suggest: float
+        low: 0
+        high: 5

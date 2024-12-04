@@ -1,0 +1,9 @@
+modelpath: "blur_model_laplacian.yaml"
+metric: "f1"
+hyperparameters:
+  nested: false
+  values:
+    threshold:
+      suggest: int
+      low: 10
+      high: 1000
