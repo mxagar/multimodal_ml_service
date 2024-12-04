@@ -20,7 +20,6 @@ Usage:
 Author: Mikel Sagardia
 Date: 2024-12-04
 """
-
 import nox
 
 nox.options.sessions = (
