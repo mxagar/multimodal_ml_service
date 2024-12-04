@@ -7,12 +7,11 @@
     - [Running the API](#running-the-api)
     - [Other Usage Examples](#other-usage-examples)
   - [Package Structure](#package-structure)
-    - [Conventions](#conventions)
+    - [Notes and Conventions](#notes-and-conventions)
     - [Cloud Architecture](#cloud-architecture)
   - [Testing and Linting](#testing-and-linting)
-    - [Pytest](#pytest)
-    - [Linting](#linting)
     - [Nox](#nox)
+    - [Pytest](#pytest)
     - [Test Coverage](#test-coverage)
   - [Improvements and TO-DOs](#improvements-and-to-dos)
   - [Interesting Links](#interesting-links)
@@ -59,14 +58,42 @@ pip-sync requirements-dev.txt
 :construction:
 
 ```bash
+cd .../multimodal_ml_service/
+./start_mlflow_tracker.sh
+
+cd .../multimodal_ml_service/
+./start_image_api.sh
+# Open and try the notebook notebooks/try_api.ipynb
+
+
+
 # Example with blur detection PoC
 cd .../multimodal_ml_service/
-cd src/domain/image_quality
-python blur.py
+python src/domain/image/blur.py
 
 # Alternatively
 python -m src.domain.image.blur
+
+python src/service/image_training_service.py
+
+python src/service/image_inference_service.py
+
 ```
+
+```python
+API_URL = "http://localhost:8000"
+image_path = "path/to/image.jpg"
+
+base64_image = base64.b64encode(image_file.read()).decode("utf-8")
+payload = { "image": base64_image}
+
+response = requests.post(f"{API_URL}/predict_image/", json=payload)
+results = response.json()
+
+for pipeline_name, result in response.json():
+    print(f"{pipeline_name}: {result}")
+```
+
 
 ### Other Usage Examples
 
@@ -139,23 +166,58 @@ repository/
 
 ![Package Structure](./assets/package_structure.png)
 
-### Conventions
+### Notes and Conventions
 
 - `DataTransformer` can be used either inside an Estimator or before it; it has learnable parameters (via `fit()`), but:
   - Prefer inserting the preprocessing functionality into an `Estimator`/Model if we want to learn the parameters (`LaplacianBlurModel`).
   - Prefer using it outside of the `Estimator` if we don't need to learn the parameters (e.g., `GradientExtractor`) and insert it in the `transformers` list.
 - Even though a `DataTransformer` can be serialized, when used in the preprocessing or ETL phase, try to save/load it as a `YAML` file.
 - Tracking (via `ModelTracker`, based on `mlflow`) happens at the `Trainer` level, not at higher levels.
-
+- If the MLflow server is started locally and the 
 
 ### Cloud Architecture
 
-![AWS Architecture](./assets/cloud_architecture.png)
+The following figure depicts a possible (not tested) cloud deployment architecture.
 
+![AWS Architecture](./assets/cloud_architecture.png)
 
 ## Testing and Linting
 
+### Nox
+
+We can use [nox](https://nox.thea.codes/en/stable/) to run different testing and validation tasks usual in CI/CD pipelines.
+
+There is a [`noxfile.py`](./noxfile.py) with a variable `LOCATIONS` in it:
+
+```python
+LOCATIONS = "src", "tests", "scripts", "noxfile.py"
+```
+
+Here's a brief recipe to use it:
+
+```bash
+# Go to package repository
+cd .../multimodal_ml_service
+
+# Run all sessions in LOCATIONS
+nox
+
+# Run install, ruff and pytest sessions on LOCATIONS
+nox -s install ruff pytest
+
+# Run ruff on src/domain
+nox -s ruff -- src/domain
+
+# Run ruff and fix code in LOCATIONS
+nox -s ruff_fix
+
+# Run pylint on LOCATIONS
+nox -s pylint
+```
+
 ### Pytest
+
+If desired, we can separately run [pytest](https://docs.pytest.org/en/stable/) as follows:
 
 ```bash
 cd .../multimodal_ml_service
@@ -171,18 +233,9 @@ Some notes:
 - All configuration files required for the tests (e.g., dataset metadata, etc.) are located in [`tests/config`](../tests/config/)
 - Unit tests from `domain`: [`tests/domain`](../tests/domain)
 
-### Linting
-
-```bash
-cd .../multimodal_ml_service
-pylint src
-```
-
-### Nox
-
-
-
 ### Test Coverage
+
+Currently, not all modules of the package have tests. Here's a summary of the coverage:
 
 ```
 Tested in src.domain.shared
@@ -237,12 +290,17 @@ Tested in src.domain.image:
 ## Improvements and TO-DOs
 
 - [x] Implement `nox` to automate testing and linting.
+- [ ] Increase test coverage.
 - [ ] The `ModelTracker` uses `mlflow.log_artifact()`, not `mlflow.log_model()`, which disables the usage of the MLflow model registry. Change that to use `mlflow.log_model()`.
 - [ ] Dependencies: not all are needed?
 - [ ] Environment: use `poerty` instead of `pip-tools`?
 
 ## Interesting Links
 
+Maybe, you are interested in some related blueprints and guides of mine:
+
+- []()
+- []()
 
 ## License and Authorship
 
