@@ -14,6 +14,10 @@ An example of how to send a request to the API is shown below:
     payload = { "image": base64_image}
 
     response = requests.post(f"{API_URL}/predict_image/", json=payload)
+    results = response.json()
+
+    for pipeline_name, result in response.json():
+        print(f"{pipeline_name}: {result}")
 
 Another example is provided in
 
