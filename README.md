@@ -4,9 +4,9 @@
   - [Introduction](#introduction)
   - [How to Use the Package](#how-to-use-the-package)
     - [Setup](#setup)
-    - [Running the API](#running-the-api)
-    - [Other Usage Examples](#other-usage-examples)
+    - [Running the Services and the API](#running-the-services-and-the-api)
   - [Package Structure](#package-structure)
+    - [Machine Learning Domain Components](#machine-learning-domain-components)
     - [Notes and Conventions](#notes-and-conventions)
     - [How to Extend the Package](#how-to-extend-the-package)
     - [Cloud Architecture](#cloud-architecture)
@@ -20,30 +20,28 @@
 
 ## Introduction
 
-Imagine a construction company that would like to document and validate onsite construction works automatically: skilled workers build different parts of the buildings and they capture images, 3d scans, or audio clips (e.g., for reverberation assessments) at different stages of the process. We could build an automatic validation service that evaluates the properties of the works; technically, one approach could be to design it as an API or service which takes in several data types (or modalities) and predicts their features.
+Imagine a construction company that would like to document and validate onsite construction works automatically: skilled workers build different parts of the buildings and they capture images, videos, 3d scans, or even audio clips (e.g., for reverberation assessments) at different stages of the process. We could build an automatic validation service that evaluates the properties of the captured building works; technically, one approach could be to design that service as an API which takes in several data types (or modalities) and predicts their features by using several models.
 
 This repository presents the architecture of a service which addresses situations similar to the introduced and provides with a blueprint implementation:
 
 - The service can handle several modality inputs (image, 3D models, etc.).
-- It can run several models in the background which predict/process properties of the introduced data.
+- It can run several models in the background which predict/process properties of the input data.
 - The models can be typical machine-learning-based models (i.e., neural networks, tree-based models, etc.) or rule-based (i.e., metrics are obtained and algebraically expressed rules used to derive properties).
-- All models parameters can be trained, persisted, and used later for inference in an API.
+- All model parameters can be trained, persisted, and used later for inference in an API.
 
-A [Domain-Driven Design (DDD)](https://en.wikipedia.org/wiki/Domain-driven_design) approach is employed, adapted to the usual pipelines and lifecycle required by machine learning (ML) projects:
+The [Domain-Driven Design (DDD)](https://en.wikipedia.org/wiki/Domain-driven_design) architecture patterns are used, adapted to the usual pipelines and lifecycle required by machine learning (ML) projects:
 
-- DDD separates the code in layers: in the core we have the *domain* or business case-related code, which is abstracted to build *services*. Additionally, we have interfaces which interact with the domain components, such as *adapters* that connect to external services, or *entrypoints* which expose our services to users. In addition, by leveraging techniques and principles from [Object-Oriented Programming](https://en.wikipedia.org/wiki/Object-oriented_programming), we can have a clean separation 
-- B
+- DDD separates the code in layers: in the core, we have the *domain* or business case-related code, which is abstracted to build *services*. Additionally, we have interfaces which interact with the domain components, such as *adapters* that connect to external services, or *entrypoints* which expose our services to the users. In addition, by leveraging principles and techniques from the [Object-Oriented Programming](https://en.wikipedia.org/wiki/Object-oriented_programming) paradigm, we can have a clean separation of the different modules, allowing for easier extension and maintainability.
+- Machine Learning is characterized by two main operation modes: *training* and *inference*. In the first, dataset samples are *preprocessed* or *transformed* and fed into an *estimator*, which is expected to predict the same output as the label; if not, the error is used to tune the *parameters or weights* of the underlying *model*. The product of the training process are precisely those *model parameters*. In the second operation mode, those optimized parameters are loaded to the *estimator*; then, a new *transformed* sample fed to it should yield a correct property prediction &mdash; hopefully ;). Both operation modes share many components; these components can be generalized for many domain uses cases in which only the data inputs and the transformer and estimator specifications are changed. That's precisely how the ML pipelines are integrated into the DDD architecture in this blueprint. 
 
 ![Domain-Driven Design and Machine Learning](./assets/ddd_ml.png)
 
-More details on the architecture are provided in [Package Structure](#package-structure). In the following section, the
+More details on the architecture are provided in [Package Structure](#package-structure). In the next section, the I show how to set up the environment and run the blueprint examples.
 
 :warning: Some final caveats:
 
-- This is a basic template, i.e., don't
-- ML methods
-
-
+- This is a basic template, i.e., don't expect a finished application running on the cloud. Even though some guidelines in that respect are outlined in [Cloud Architecture](#cloud-architecture), the present example ends with a locally running FastAPI service.
+- Machine Learning methods are not in the focus of this
 
 ## How to Use the Package
 
@@ -54,6 +52,8 @@ In the following, these sections are provided:
 - [Other Usage Examples](#other-usage-examples) shows other possible usage cases.
 
 ### Setup
+
+We need to create a dedicated Python environment; here's a quick recipe using [conda](https://docs.conda.io/en/latest/) and [pip-tools](https://github.com/jazzband/pip-tools):
 
 ```bash
 # On Mac, you'll need to explicitly install libomp
@@ -83,32 +83,47 @@ pip-compile requirements-dev.in
 pip-sync requirements-dev.txt
 ```
 
-### Running the API
+### Running the Services and the API
 
-:construction:
+First, we need to start the [MLflow](https://mlflow.org/docs/latest/index.html) tracking server:
 
 ```bash
+# Go to repository folder and activate the environment
 cd .../multimodal_ml_service/
+conda activate multimodal
+
+# Start the MLflow server
 ./start_mlflow_tracker.sh
+```
 
+Then, in a new Terminal, we can try the *training* and *inference* services as follows:
+
+```bash
+# Go to repository folder and activate the environment
 cd .../multimodal_ml_service/
-./start_image_api.sh
-# Open and try the notebook notebooks/try_api.ipynb
+conda activate multimodal
 
-
-
-# Example with blur detection PoC
-cd .../multimodal_ml_service/
-python src/domain/image/blur.py
-
-# Alternatively
-python -m src.domain.image.blur
-
+# Run Training
 python src/service/image_training_service.py
 
+# Run Inference
 python src/service/image_inference_service.py
-
 ```
+
+Currently, only a simple domain use case is implemented: **blur** detection, i.e., we feed an image and the model predicts whether it's blurry or not.
+
+In addition to using the service modules, we can start the FastAPI server and feed an image to the `/predict_image` endpoint to know about its *blurryness*. To that end, first we start the API from a new Terminal:
+
+```bash
+# Go to repository folder and activate the environment
+cd .../multimodal_ml_service/
+conda activate multimodal
+
+# Start FastAPI server
+./start_image_api.sh
+```
+
+Then, we can try the API by running the notebook [`try_api.ipynb`](./notebooks/try_api.ipynb), which contains a snippet similar to the following:
 
 ```python
 API_URL = "http://localhost:8000"
@@ -124,18 +139,17 @@ for pipeline_name, result in response.json():
     print(f"{pipeline_name}: {result}")
 ```
 
-
-### Other Usage Examples
+In some other modules such as [`blur.py`](./src/domain/image/blur.py) or [`tracker.py`](./src/adapters/tracker.py) there are some `run_example()` functions which showcase some additional functionalities.
 
 
 ## Package Structure
 
-Domain Driven Design Structure:
+The package is structured in the following folders, following the DDD paradigm:
 
-- **Adapters**: Provide interfaces to interact with external systems, making the core logic independent of external APIs.
-- **Domain**: Core logic specific to the problem domain. Each subdomain (image, 3D models, etc.) is isolated. There is a common `shared` subdomain which builds all the components necessary for ETL, training, evaluation, and inference.
-- **Service**: Handles orchestration and coordination of tasks, such as running ML models or rule-based assessments.
-- **Entry-points**: Handles requests from the external environment (Flask API, command line, etc.) to trigger services.
+- **Adapters**: They provide interfaces to interact with external systems, making the core logic independent of external APIs. Here's where the logger and the tracker are located, as well as the abstractions/connections to databases (unimplemented) or the like.
+- **Domain**: Core logic specific to the domain problems; currently only image blur detection is implemented as example. Each subdomain (image, 3D models, etc.) is isolated. There is a common `shared` subdomain which builds all the **Machine Learning** components necessary for ETL, training, evaluation, and inference. These are explained in more detail in [Machine Learning Domain Components](#machine-learning-domain-components).
+- **Service**: It handles orchestration and coordination of tasks, such as running the training or inference pipelines of the desired domain cases.
+- **Entry-points**: It handles requests from the external environment (Flask API, command line, etc.) which trigger services.
 - Config: Centralized management for different environment settings.
 - Tests: Structured testing to ensure each component works independently and as part of the integrated system.
 - Scripts: Entry scripts to perform manual operations and setup tasks.
@@ -193,6 +207,10 @@ repository/
             shared/
             ...
 ```
+
+### Machine Learning Domain Components
+
+A key contribution of the blueprint is the set of machine learning modules contained in `src/domain/shared`.
 
 ![Package Structure](./assets/package_structure.png)
 
