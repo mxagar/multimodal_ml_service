@@ -225,19 +225,25 @@ A key contribution of the blueprint is the set of machine learning modules conta
 
 ### How to Extend the Package
 
-TBD.
+I see at least three straightforward extension directions:
+
+1. Deploy to the Cloud. See [Cloud Architecture](#cloud-architecture).
+2. Add a new model to the `image` subdomain.
+3. Add a new subdomain in the same level as `image`.
 
 ### Cloud Architecture
 
-The following figure depicts a possible (not tested) cloud deployment architecture.
+The following figure depicts a possible (not tested) cloud deployment architecture. It is still an open task to further elaborate on the architecture and implement the basic infrastructure necessary for the deployment.
 
 ![AWS Architecture](./assets/cloud_architecture.png)
 
 ## Testing and Linting
 
+[Nox](#nox) is leveraged for automated linting (mainly with [ruff](https://github.com/astral-sh/ruff)) and testing (with [pytest](https://docs.pytest.org/en/stable/)).
+
 ### Nox
 
-We can use [nox](https://nox.thea.codes/en/stable/) to run different testing and validation tasks usual in CI/CD pipelines.
+[Nox](https://nox.thea.codes/en/stable/) makes possible to run different testing and validation tasks usual in CI/CD pipelines.
 
 There is a [`noxfile.py`](./noxfile.py) with a variable `LOCATIONS` in it:
 
@@ -342,6 +348,7 @@ Tested in src.domain.image:
 ## Improvements and TO-DOs
 
 - [x] Implement `nox` to automate testing and linting.
+- [ ] Implement the cloud infrastructure code.
 - [ ] Increase test coverage.
 - [ ] The `ModelTracker` uses `mlflow.log_artifact()`, not `mlflow.log_model()`, which disables the usage of the MLflow model registry. Change that to use `mlflow.log_model()`.
 - [ ] Dependencies: not all are needed?
@@ -351,9 +358,9 @@ Tested in src.domain.image:
 
 Maybe, you are interested in some related blueprints and guides of mine:
 
-- []()
-- []()
+- Design Patterns in Python: [mxagar/design_patterns_notes](https://github.com/mxagar/design_patterns_notes).
+- Notes on the Udacity MLOps Nanodegree: [mxagar/mlops_udacity](https://github.com/mxagar/mlops_udacity).
 
 ## License and Authorship
 
-Refer to [`LICENSE](./LICENSE).
+Refer to [`LICENSE`](./LICENSE).
