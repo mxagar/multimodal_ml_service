@@ -8,6 +8,7 @@
     - [Other Usage Examples](#other-usage-examples)
   - [Package Structure](#package-structure)
     - [Notes and Conventions](#notes-and-conventions)
+    - [How to Extend the Package](#how-to-extend-the-package)
     - [Cloud Architecture](#cloud-architecture)
   - [Testing and Linting](#testing-and-linting)
     - [Nox](#nox)
@@ -19,15 +20,44 @@
 
 ## Introduction
 
-TBD.
+Imagine a construction company that would like to document and validate onsite construction works automatically: skilled workers build different parts of the buildings and they capture images, 3d scans, or audio clips (e.g., for reverberation assessments) at different stages of the process. We could build an automatic validation service that evaluates the properties of the works; technically, one approach could be to design it as an API or service which takes in several data types (or modalities) and predicts their features.
+
+This repository presents the architecture of a service which addresses situations similar to the introduced and provides with a blueprint implementation:
+
+- The service can handle several modality inputs (image, 3D models, etc.).
+- It can run several models in the background which predict/process properties of the introduced data.
+- The models can be typical machine-learning-based models (i.e., neural networks, tree-based models, etc.) or rule-based (i.e., metrics are obtained and algebraically expressed rules used to derive properties).
+- All models parameters can be trained, persisted, and used later for inference in an API.
+
+A [Domain-Driven Design (DDD)](https://en.wikipedia.org/wiki/Domain-driven_design) approach is employed, adapted to the usual pipelines and lifecycle required by machine learning (ML) projects:
+
+- DDD separates the code in layers: in the core we have the *domain* or business case-related code, which is abstracted to build *services*. Additionally, we have interfaces which interact with the domain components, such as *adapters* that connect to external services, or *entrypoints* which expose our services to users. In addition, by leveraging techniques and principles from [Object-Oriented Programming](https://en.wikipedia.org/wiki/Object-oriented_programming), we can have a clean separation 
+- B
+
+![Domain-Driven Design and Machine Learning](./assets/ddd_ml.png)
+
+More details on the architecture are provided in [Package Structure](#package-structure). In the following section, the
+
+:warning: Some final caveats:
+
+- This is a basic template, i.e., don't
+- ML methods
+
+
 
 ## How to Use the Package
+
+In the following, these sections are provided:
+
+- [Setup](#setup) shows how to install the required Python environment and its dependencies.
+- [Running the API](#running-the-api) shows how to start using the package by interacting with the FastAPI application.
+- [Other Usage Examples](#other-usage-examples) shows other possible usage cases.
 
 ### Setup
 
 ```bash
 # On Mac, you'll need to explicitly install libomp
-# Additionally, make sure that your Anaconda/M iniforge is for the right architecture (i.e., ARM64 for M1+)
+# Additionally, make sure that your Anaconda/Miniforge is for the right architecture (i.e., ARM64 for M1+)
 brew install libomp
 
 # Create environment (Python 3.11, pip & pip-tools)
@@ -102,10 +132,10 @@ for pipeline_name, result in response.json():
 
 Domain Driven Design Structure:
 
-- Adapters: Provide interfaces to interact with external systems, making the core logic independent of external APIs.
-- Domain: Core logic specific to the problem domain. Each subdomain (image, 3D models, etc.) is isolated. There is a common `shared` subdomain which builds all the components necessary for ETL, training, evaluation, and inference.
-- Service: Handles orchestration and coordination of tasks, such as running ML models or rule-based assessments.
-- Entry-points: Handles requests from the external environment (Flask API, command line, etc.) to trigger services.
+- **Adapters**: Provide interfaces to interact with external systems, making the core logic independent of external APIs.
+- **Domain**: Core logic specific to the problem domain. Each subdomain (image, 3D models, etc.) is isolated. There is a common `shared` subdomain which builds all the components necessary for ETL, training, evaluation, and inference.
+- **Service**: Handles orchestration and coordination of tasks, such as running ML models or rule-based assessments.
+- **Entry-points**: Handles requests from the external environment (Flask API, command line, etc.) to trigger services.
 - Config: Centralized management for different environment settings.
 - Tests: Structured testing to ensure each component works independently and as part of the integrated system.
 - Scripts: Entry scripts to perform manual operations and setup tasks.
@@ -174,6 +204,10 @@ repository/
 - Even though a `DataTransformer` can be serialized, when used in the preprocessing or ETL phase, try to save/load it as a `YAML` file.
 - Tracking (via `ModelTracker`, based on `mlflow`) happens at the `Trainer` level, not at higher levels.
 - If the MLflow server is started locally and the 
+
+### How to Extend the Package
+
+TBD.
 
 ### Cloud Architecture
 
