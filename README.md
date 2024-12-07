@@ -25,14 +25,16 @@ Imagine a construction company that would like to document and validate onsite c
 This repository presents the architecture of a service which addresses situations similar to the introduced and provides with a blueprint implementation:
 
 - The service can handle several modality inputs (image, 3D models, etc.).
-- It can run several models in the background which predict/process properties of the input data.
+- It can run several models in the background which predict/obtain properties of the input data.
 - The models can be typical machine-learning-based models (i.e., neural networks, tree-based models, etc.) or rule-based (i.e., metrics are obtained and algebraically expressed rules used to derive properties).
 - All model parameters can be trained, persisted, and used later for inference in an API.
 
 The [Domain-Driven Design (DDD)](https://en.wikipedia.org/wiki/Domain-driven_design) architecture patterns are used, adapted to the usual pipelines and lifecycle required by machine learning (ML) projects:
 
-- DDD separates the code in layers: in the core, we have the *domain* or business case-related code, which is abstracted to build *services*. Additionally, we have interfaces which interact with the domain components, such as *adapters* that connect to external services, or *entrypoints* which expose our services to the users. In addition, by leveraging principles and techniques from the [Object-Oriented Programming](https://en.wikipedia.org/wiki/Object-oriented_programming) paradigm, we can have a clean separation of the different modules, allowing for easier extension and maintainability.
-- Machine Learning is characterized by two main operation modes: *training* and *inference*. In the first, dataset samples are *preprocessed* or *transformed* and fed into an *estimator*, which is expected to predict the same output as the label; if not, the error is used to tune the *parameters or weights* of the underlying *model*. The product of the training process are precisely those *model parameters*. In the second operation mode, those optimized parameters are loaded to the *estimator*; then, a new *transformed* sample fed to it should yield a correct property prediction &mdash; hopefully ;). Both operation modes share many components; these components can be generalized for many domain uses cases in which only the data inputs and the transformer and estimator specifications are changed. That's precisely how the ML pipelines are integrated into the DDD architecture in this blueprint. 
+- DDD separates the code in layers: in the core, we have the *domain* or business-case-related code, which is abstracted to build *services*. Additionally, we have interfaces which interact with the domain components, such as *adapters* that connect to external services, or *entrypoints* which expose our services to the users.
+- Machine Learning is characterized by two main operation modes: *training* and *inference*. In the first, dataset samples are *preprocessed* or *transformed*, and fed into an *estimator*, which is expected to predict the same output as the ground truth label; if not, the error is used to tune the *parameters or weights* of the underlying *model*. The product of the training process are precisely those *model parameters*. In the second operation mode, those optimized parameters are loaded to the *estimator*; then, a new *transformed* sample fed to it should yield a correct property prediction &mdash; hopefully :wink:. Both operation modes share many components; these components can be generalized for many domain uses cases in which only the data inputs and the transformer and estimator specifications are changed. That's precisely how the ML pipelines are integrated into the DDD architecture in this blueprint. 
+
+In addition, by leveraging principles and techniques from the [Object-Oriented Programming](https://en.wikipedia.org/wiki/Object-oriented_programming) paradigm, we have a clean separation of the different modules, allowing for easier extension and maintainability.
 
 ![Domain-Driven Design and Machine Learning](./assets/ddd_ml.png)
 
@@ -41,15 +43,14 @@ More details on the architecture are provided in [Package Structure](#package-st
 :warning: Some final caveats:
 
 - This is a basic template, i.e., don't expect a finished application running on the cloud. Even though some guidelines in that respect are outlined in [Cloud Architecture](#cloud-architecture), the present example ends with a locally running FastAPI service.
-- Machine Learning methods are not in the focus of this
+- Machine Learning (ML) methods are not in the focus of this blueprint, i.e., no fancy ML models are applied; instead, the key contribution is the architecture and the generalized ML modules than can be reused in many applications. Exemplarily, a simple blur detection method is implemented by extracting Sobel and Laplace features.
 
 ## How to Use the Package
 
-In the following, these sections are provided:
+In the following, these sections are presented:
 
 - [Setup](#setup) shows how to install the required Python environment and its dependencies.
 - [Running the API](#running-the-api) shows how to start using the package by interacting with the FastAPI application.
-- [Other Usage Examples](#other-usage-examples) shows other possible usage cases.
 
 ### Setup
 
@@ -123,7 +124,7 @@ conda activate multimodal
 ./start_image_api.sh
 ```
 
-Then, we can try the API by running the notebook [`try_api.ipynb`](./notebooks/try_api.ipynb), which contains a snippet similar to the following:
+Then, we can try the API by running the notebook [`try_api.ipynb`](./notebooks/try_api.ipynb), which contains a code similar to the following:
 
 ```python
 API_URL = "http://localhost:8000"
@@ -139,12 +140,20 @@ for pipeline_name, result in response.json():
     print(f"{pipeline_name}: {result}")
 ```
 
-In some other modules such as [`blur.py`](./src/domain/image/blur.py) or [`tracker.py`](./src/adapters/tracker.py) there are some `run_example()` functions which showcase some additional functionalities.
+In some other modules such as [`blur.py`](./src/domain/image/blur.py) or [`tracker.py`](./src/adapters/tracker.py) there are some `run_example()` functions which showcase some additional functionalities. These can be run by executing the corresponding modules, e.g.:
 
+```bash
+# Go to repository folder and activate the environment
+cd .../multimodal_ml_service/
+conda activate multimodal
+
+# Run Training
+python src/domain/image/blur.py
+```
 
 ## Package Structure
 
-The package is structured in the following folders, following the DDD paradigm:
+The package is structured in the following subfolders, following the DDD paradigm:
 
 - **Adapters**: They provide interfaces to interact with external systems, making the core logic independent of external APIs. Here's where the logger and the tracker are located, as well as the abstractions/connections to databases (unimplemented) or the like.
 - **Domain**: Core logic specific to the domain problems; currently only image blur detection is implemented as example. Each subdomain (image, 3D models, etc.) is isolated. There is a common `shared` subdomain which builds all the **Machine Learning** components necessary for ETL, training, evaluation, and inference. These are explained in more detail in [Machine Learning Domain Components](#machine-learning-domain-components).
@@ -159,18 +168,18 @@ repository/
     src/                               # Source folder for package
         core.py                        # General definitions/constants (e.g., paths)
         adapters/                      # Interface for interacting with external systems
-            data_repo.py               # Repository for managing images
-            db.py                      # Database adapter for general CRUD operations
-            annotations.py             # Label-Studio
+            data_repo.py               # Repository for managing images (unimplemented)
+            db.py                      # Database adapter for general CRUD operations (unimplemented)
+            annotations.py             # Label-Studio (unimplemented)
             serialization.py           # De/Serialization utilities
             logger.py                  # Loggers
             tracker.py                 # ModelTracker based on MLflow
         domain/                        # Core business logic
             image/                     # Subdomain for predicting/processing image properties
                 blur.py                # Check image blur quality
-                brightness.py          # Assess brightness quality of images
+                brightness.py          # Assess brightness quality of images (unimplemented)
                 ...
-            3d_models/                 # Subdomain for predicting/processing 3D model properties
+            3d_models/                 # Subdomain for predicting/processing 3D model properties (unimplemented)
                 ...
             shared/                    # Shared logic used across domains
                 data.py                # Dataset classes
@@ -185,8 +194,8 @@ repository/
             quality_assessment_service.py  # Handle different quality assessment pipelines (image, 3D scan, build)
         entrypoints/                       # External access points to the system (Flask, CLI, etc.)
             api.py                         # FastAPI app for serving models + endpoints
-            cli.py                         # CLI, Click
-            gui.py                         # Streamlit
+            cli.py                         # CLI, Click (unimplemented)
+            gui.py                         # Streamlit app (unimplemented)
         config/                                 # Configuration files for managing different environments and parameters
             config.py                           # General configuration parser
             blur_dataset.yaml                   # Config for blur dataset
@@ -217,11 +226,10 @@ A key contribution of the blueprint is the set of machine learning modules conta
 ### Notes and Conventions
 
 - `DataTransformer` can be used either inside an Estimator or before it; it has learnable parameters (via `fit()`), but:
-  - Prefer inserting the preprocessing functionality into an `Estimator`/Model if we want to learn the parameters (`LaplacianBlurModel`).
-  - Prefer using it outside of the `Estimator` if we don't need to learn the parameters (e.g., `GradientExtractor`) and insert it in the `transformers` list.
+  - Prefer inserting the preprocessing functionality into an `Estimator`/Model if we want to learn the parameters (`LaplacianBlurModel`), e.g., using `SklearnPipeEstimator`.
+  - In general, prefer using them outside of the `Estimator` if we don't need to learn the parameters (e.g., `GradientExtractor`) and insert them in the `transformers` list associated to the `Training/InferencePipeline`.
 - Even though a `DataTransformer` can be serialized, when used in the preprocessing or ETL phase, try to save/load it as a `YAML` file.
 - Tracking (via `ModelTracker`, based on `mlflow`) happens at the `Trainer` level, not at higher levels.
-- If the MLflow server is started locally and the 
 
 ### How to Extend the Package
 
@@ -229,17 +237,20 @@ I see at least three straightforward extension directions:
 
 1. Deploy to the Cloud. See [Cloud Architecture](#cloud-architecture).
 2. Add a new model to the `image` subdomain.
-3. Add a new subdomain in the same level as `image`.
+3. Add a new subdomain in the same level as `image`, e.g., a new modality, such as 3d models.
 
 ### Cloud Architecture
 
-The following figure depicts a possible (not tested) cloud deployment architecture. It is still an open task to further elaborate on the architecture and implement the basic infrastructure necessary for the deployment.
+The following figure depicts a possible (not tested) cloud deployment architecture. It is still an open task to further elaborate the draft and implement the basic infrastructure necessary for the deployment.
 
 ![AWS Architecture](./assets/cloud_architecture.png)
 
 ## Testing and Linting
 
-[Nox](#nox) is leveraged for automated linting (mainly with [ruff](https://github.com/astral-sh/ruff)) and testing (with [pytest](https://docs.pytest.org/en/stable/)).
+[Nox](#nox) is leveraged for automated 
+
+- linting (mainly with [ruff](https://github.com/astral-sh/ruff))
+- and testing (with [pytest](https://docs.pytest.org/en/stable/)).
 
 ### Nox
 
