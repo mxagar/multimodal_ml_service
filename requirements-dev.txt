@@ -18,8 +18,6 @@ anyio==4.6.2.post1
     #   jupyter-server
     #   starlette
     #   watchfiles
-appnope==0.1.4
-    # via ipykernel
 argcomplete==3.5.1
     # via nox
 argon2-cffi==23.1.0
@@ -70,6 +68,15 @@ click==8.1.7
     #   uvicorn
 cloudpickle==3.1.0
     # via mlflow
+colorama==0.4.6
+    # via
+    #   click
+    #   colorlog
+    #   ipython
+    #   pylint
+    #   pytest
+    #   tqdm
+    #   uvicorn
 coloredlogs==15.0.1
     # via onnxruntime
 colorlog==6.9.0
@@ -145,8 +152,8 @@ gitpython==3.1.43
     #   lint
     #   mlflow
     #   streamlit
-gunicorn==23.0.0
-    # via mlflow
+greenlet==3.1.1
+    # via sqlalchemy
 h11==0.14.0
     # via
     #   httpcore
@@ -359,7 +366,6 @@ overrides==7.7.0
 packaging==24.2
     # via
     #   altair
-    #   gunicorn
     #   ipykernel
     #   jupyter-server
     #   jupyterlab
@@ -384,8 +390,6 @@ parso==0.8.4
     # via jedi
 pathlib==1.0.1
     # via -r requirements.in
-pexpect==4.9.0
-    # via ipython
 pillow==10.3.0
     # via
     #   -r requirements.in
@@ -417,10 +421,6 @@ protobuf==4.25.5
     #   streamlit
 psutil==6.1.0
     # via ipykernel
-ptyprocess==0.7.0
-    # via
-    #   pexpect
-    #   terminado
 pure-eval==0.2.3
     # via stack-data
 pyarrow==18.1.0
@@ -457,6 +457,8 @@ pylint==3.2.6
     #   lint
 pyparsing==3.2.0
     # via matplotlib
+pyreadline3==3.5.4
+    # via humanfriendly
 pyrr==0.10.3
     # via -r requirements.in
 pytest==8.3.1
@@ -492,6 +494,15 @@ pytz==2024.2
     # via
     #   mlflow
     #   pandas
+pywin32==308
+    # via
+    #   docker
+    #   jupyter-core
+pywinpty==2.0.14
+    # via
+    #   jupyter-server
+    #   jupyter-server-terminals
+    #   terminado
 pyyaml==6.0.1
     # via
     #   -r requirements.in
@@ -655,10 +666,12 @@ uvicorn[standard]==0.32.1
     #   -r requirements.in
     #   fastapi
     #   fastapi-cli
-uvloop==0.21.0
-    # via uvicorn
 virtualenv==20.28.0
     # via nox
+waitress==3.0.2
+    # via mlflow
+watchdog==6.0.0
+    # via streamlit
 watchfiles==1.0.0
     # via uvicorn
 wcwidth==0.2.13
