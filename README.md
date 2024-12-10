@@ -222,6 +222,25 @@ repository/
 ### Machine Learning Domain Components
 
 A key contribution of the blueprint is the set of machine learning modules contained in `src/domain/shared`.
+All the domain modules that solve business cases, such as [`blur.py`](./src/domain/image/blur.py) (which determines whether an image is blurred or not), use these generic machine learning components.
+
+In the following, a brief description of the classes contained in the machine learning modules is provided:
+
+- [`data.py`](./src/domain/shared/data.py)
+  - `DataTransfomer`
+  - `Dataset` and `ImageDataset(DataTransformer)`
+- [`estimators.py`](./src/domain/shared/estimators.py)
+  - `Estimator`
+  - `SklearnPipeEstimator(Estimator)`
+  - `RuleBasedModel` and `RuleBasedEstimator(Estimator)`
+- [`training.py`](./src/domain/shared/training.py)
+  - `TrainingArguments`
+  - `Trainer`
+- [`pipelines.py`](./src/domain/shared/pipelines.py)
+  - `TrainingPipelines`
+  - `InferencePipeline`
+
+A detailed relationship of the classes is shown in the following diagram:
 
 ![Package Structure](./assets/package_structure.png)
 
