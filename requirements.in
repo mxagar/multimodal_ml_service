@@ -24,6 +24,7 @@ fastapi[standard]
 uvicorn[standard]
 pydantic
 #mlflow-skinny==2.17.2
+boto3
 mlflow
 protobuf>=3.20,<5.0
 sqlalchemy<2.0
