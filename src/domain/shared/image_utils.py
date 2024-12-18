@@ -162,6 +162,19 @@ def load_image(filepath: Union[str, pathlib.Path],
     return image
 
 
+def save_image(image: Image.Image | np.ndarray,
+               filepath: str | pathlib.Path,
+               in_channels: Optional[ChannelOrder] = ChannelOrder.RGB) -> None:
+    """Save an image to the specified path."""
+    if isinstance(filepath, pathlib.Path):
+        filepath = str(filepath)
+
+    if isinstance(image, np.ndarray):
+        image = numpy2pil(image=image, in_channels=in_channels)
+
+    image.save(filepath)
+
+
 def resize_image(image: Union[Image.Image, np.ndarray],
                  min_size: int,
                  keep_aspect_ratio: bool = True) -> Union[Image.Image, np.ndarray]:
