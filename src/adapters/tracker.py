@@ -22,13 +22,14 @@ import requests
 
 import mlflow
 
+from src.core import SRC_PATH
 from src.adapters.logger import Logger
 from src.adapters.serialization import serialize, deserialize
 from src.core import TRACKING_PATH, ARTIFACTS_PATH, LOGS_PATH
 
 
 # Load environment variables
-load_dotenv()
+load_dotenv(override=True, dotenv_path=str(SRC_PATH / ".env"))
 
 
 class ModelTracker:
@@ -323,7 +324,7 @@ class ModelTracker:
 def _get_tracker_env_vars() -> Dict[str, str]:
     """Get the environment variables for the ModelTracker."""
     # Set environment variables
-    load_dotenv()
+    load_dotenv(override=True, dotenv_path=str(SRC_PATH / ".env"))
     # Read environment variables or set defaults
     # Paths should be absolute
     MLFLOW_BACKEND_URI = "sqlite:///" + str(TRACKING_PATH) + "/mlflow.db"
