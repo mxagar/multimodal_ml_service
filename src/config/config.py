@@ -1,7 +1,8 @@
+import os
 import pathlib
 import yaml
 from typing import Any, Dict, Union, List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, HttpUrl
 
 from ..core import (
     CONFIG_PATH
@@ -61,8 +62,22 @@ class DataTransformerConfig(BaseModel):  # noqa: D101
     params: Dict[str, Any]
 
 
+class AnnotationProjectConfig(BaseModel):  # noqa: D101
+    base_url: Optional[HttpUrl] = "http://localhost:8080"
+    api_token: Optional[str] = os.getenv("LABEL_STUDIO_API_TOKEN")
+    verify: Optional[bool] = False
+    timeout: Optional[int] = 60
+    download_samples: Optional[bool] = True
+    # sample_identifier is the key in the task data JSON that identifies the sample type
+    # In LabelStudio: <Image name="image" value="$image"/> \ <Choices name="choice" toName="image">
+    sample_identifier: Optional[str] = "image"
+    project_id: int
+    sample_storage_uri: str
+
+
 class DatasetConfig(BaseModel):  # noqa: D101
     uri: str
     class_names: Optional[List[str]] = None
-    folder_labels: Optional[Dict[str, int]] = None
+    data_label_mapping: Optional[Dict[str, int]] = None
     labels: Optional[List[Union[str, int]]] = None
+    annotation_project: Optional[AnnotationProjectConfig] = None
