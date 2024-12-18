@@ -7,6 +7,7 @@
     - [Running the Services and the API](#running-the-services-and-the-api)
   - [Package Structure](#package-structure)
     - [Machine Learning Domain Components](#machine-learning-domain-components)
+    - [Adapters](#adapters)
     - [Domain Levels and Guidelines to Extend the Package](#domain-levels-and-guidelines-to-extend-the-package)
     - [Notes and Conventions](#notes-and-conventions)
     - [Cloud Architecture](#cloud-architecture)
@@ -244,6 +245,10 @@ A detailed relationship of the classes is shown in the following diagram:
 
 ![Package Structure](./assets/package_structure.png)
 
+### Adapters
+
+TBD.
+
 ### Domain Levels and Guidelines to Extend the Package
 
 At the end of the day, the domain is the core part where the business cases are solved.
@@ -270,7 +275,7 @@ We can image much more sophisticated domain use cases:
 - Is a required object present in the 3D scan or not?
 - etc.
 
-In any case, the current `blur.py` is the reference example which other cases should follow, based on the three *domain levels*.
+In any case, the current [`blur.py`](./src/domain/image/blur.py) is the reference example which other cases should follow, based on the three *domain levels*.
 
 ### Notes and Conventions
 
@@ -380,10 +385,19 @@ Tested in src.domain.shared
   - [ ] base64_to_image
   - [ ] image_to_base64
   - [ ] resize_images_in_folder
+  - [ ] save_image
+
+Tested in src.adapters
 - logger:
   - [ ] Logger
 - tracker: 
   - [ ] ModelTracker
+- annotations:
+  - [ ] AnnotationProject
+- storage:
+  - [ ] ObjectStorage
+- data_repo:
+  - [ ] DataRepository
 
 Tested in src.domain.image:
 - blur
@@ -403,7 +417,8 @@ Tested in src.domain.image:
 - [ ] Implement the cloud infrastructure code.
 - [ ] Increase test coverage.
 - [ ] The `ModelTracker` uses `mlflow.log_artifact()`, not `mlflow.log_model()`, which disables the usage of the MLflow model registry. Change that to use `mlflow.log_model()`.
-- [ ] Dependencies: not all are needed?
+- [ ] The `Trainer` should receive a `Dataset` as training argument so that we can use lazy loading of batches during training of ANNs.
+- [ ] Dependencies: not all are needed in the environment definition?
 - [ ] Environment: use `poerty` instead of `pip-tools`?
 
 ## Interesting Links
