@@ -32,6 +32,7 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 import uvicorn
 
+from src.core import SRC_PATH
 from src.core import APPLICATION_NAME, VERSION
 from src.service import image_inference_service
 from src.domain.shared import image_utils
@@ -41,7 +42,7 @@ from src.domain.shared import image_utils
 app = FastAPI()
 
 # Load environment variables
-load_dotenv()
+load_dotenv(override=True, dotenv_path=str(SRC_PATH / ".env"))
 
 # Initialize the image inference service
 image_service = image_inference_service
