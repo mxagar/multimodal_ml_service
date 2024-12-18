@@ -53,9 +53,17 @@ class Logger:
         if log_file is not None:
             if isinstance(log_file, pathlib.Path):
                 log_file = str(log_file)
-            file_handler = logging.FileHandler(log_file)
-            file_handler.setFormatter(formatter)
-            self.logger.addHandler(file_handler)
+            try:
+                log_file_path = pathlib.Path(log_file)
+                log_file_path.parent.mkdir(parents=True, exist_ok=True)
+                file_handler = logging.FileHandler(log_file)
+                file_handler.setFormatter(formatter)
+                self.logger.addHandler(file_handler)
+            except PermissionError as e:
+                self.warning(f"Logger: Permission denied to write to {log_file}. {e}")
+            except FileNotFoundError as e:
+                self.warning(f"Logger: Cannot write logs to {log_file}. {e}")
+
 
     def get_logger(self) -> logging.Logger:  # noqa: D102
         return self.logger
