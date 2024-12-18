@@ -22,15 +22,18 @@ from sklearn.base import BaseEstimator, TransformerMixin
 
 from src.core import DATA_PATH
 from src.adapters.logger import Logger
-from src.config.config import (load_config_yaml,
-                               DatasetConfig)
-from src.domain.shared.image_utils import (load_image,
-                                           resize_image,
-                                           ChannelOrder,
-                                           ImageFormat,
-                                           numpy2pil,
-                                           pil2numpy,
-                                           change_image_channels)
+from src.config.config import load_config_yaml, DatasetConfig, AnnotationProjectConfig
+from src.adapters.data_repo import DataRepository
+
+from src.domain.shared.image_utils import (
+    load_image,
+    resize_image,
+    ChannelOrder,
+    ImageFormat,
+    numpy2pil,
+    pil2numpy,
+    change_image_channels
+)
 
 
 class DataTransformer(BaseEstimator, TransformerMixin):
@@ -239,6 +242,12 @@ def load_data_transformers(transformers: List[DataTransformer],
 class Dataset:
     """A base dataset class that handles different types of data sources.
 
+    If the dataset is local, it can be a folder with subfolders, each containing samples.
+    If the dataset is remote, we should define it in the YAML file using the `annotation_project` field.
+    Then, the data will be downloaded from the cloud using DataRepository.
+    NOTE: DataRepository works with Label Studio projects and S3 buckets under the hood,
+    which are interfaced in the adapters.
+
     Usage:
         ds1 = Dataset(uri="path/to/dataset")
         ds2 = Dataset()
@@ -249,7 +258,7 @@ class Dataset:
     def __init__(self,
                  uri: Optional[Union[str, pathlib.Path]] = None,
                  labels: Optional[List[str]] = None,
-                 folder_labels: Optional[Dict] = None,
+                 data_label_mapping: Optional[Dict] = None,
                  class_names: Optional[List[str]] = None,
                  yaml_path: Optional[Union[str, pathlib.Path]] = None,
                  data_path: Optional[Union[str, pathlib.Path]] = None,
@@ -257,7 +266,7 @@ class Dataset:
 
         self._uri = pathlib.Path(uri) if uri is not None else None
         self._labels: str = labels if labels is not None else []
-        self._folder_labels = folder_labels if folder_labels is not None else {}
+        self._data_label_mapping = data_label_mapping if data_label_mapping is not None else {}
         self._yaml_path = pathlib.Path(yaml_path) if yaml_path is not None else None
         self._data_path = pathlib.Path(data_path) if data_path is not None else DATA_PATH
         self._load_filenames = load_filenames
@@ -269,6 +278,14 @@ class Dataset:
         # which does not necessarily correspond to the class names
         self._class_names: List[str] = class_names if class_names is not None else []
         self._folder_names: List[str] = []
+        # The Dataset YAML can contain the key annotation_project
+        # which connects the dataset to a Label Studio project
+        # and downloads the images from the cloud using DataRepository
+        self._annotation_project_config: Optional[AnnotationProjectConfig] = None
+        # DataRepository is instantiated only if we have an annotation project
+        self._data_repository: Optional[DataRepository] = None
+
+        self._current_index = 0
 
         if self._uri is not None:
             self._setup()
@@ -280,12 +297,13 @@ class Dataset:
         config_dict = load_config_yaml(str(yaml_path))
         config = DatasetConfig(**config_dict) # Validation via Pydantic
         self._uri = config.uri # config_dict.get('uri', None)
-        self._folder_labels = config.folder_labels if config.folder_labels is not None else {}
+        self._data_label_mapping = config.data_label_mapping if config.data_label_mapping is not None else {}
         self._class_names = config.class_names if config.class_names is not None else []
         self._labels = config.labels if config.labels is not None else []
+        self._annotation_project_config = config.annotation_project  # None by default, if not set
 
         if self._uri is None:
-            raise ValueError("YAML file must contain a 'uri' field.")
+            raise ValueError("YAML file must contain a 'uri' field.") from None
         self._setup()
 
     def load_filenames(self) -> None:
@@ -298,59 +316,112 @@ class Dataset:
             for file in folder_path.iterdir():
                 if file.is_file():
                     self._filenames.append(file.relative_to(self._local_path))
-                    if len(self._folder_labels.items()) > 0:
+                    if len(self._data_label_mapping.items()) > 0:
                         # Perform label mapping
-                        self._labels.append(self._folder_labels[folder_name])
+                        self._labels.append(self._data_label_mapping[folder_name])
                     else:
                         # FIXME: This is not ideal, but it's a quick fix
                         # We should the class name/id and not the folder name
                         self._labels.append(folder_name)
 
     def _setup(self) -> None:
-        # TODO: Check URI type: local, remote
-        # TODO: If remote: download -> image_repo.py
-        self._local_path = self._data_path / pathlib.Path(self._uri)
+        """Check if the URI is a local path or a remote URI and prepare the dataset.
 
-        # Case: local  # noqa: ERA001
+        Remote URIs can look like local paths, but they come in a YAML
+        which also has a field `annotation_project` which is used to download the images.
+
+        Local URIs are processed by _prepare_local_dataset()
+        Remote URIs are processed by _prepare_remote_dataset()
+
+        In both cases, a local_path will exist, which contains the samples.
+        If we have a local URI and no folder exists, we raise an error.
+        """
+        if self._uri is None:
+            errmsg = "Warning no URI is set up. Local Path can't be created"
+            raise ValueError(errmsg)
+
+        # Define _local_path from _uri under _data_path
+        # Remote URIs might contain "://", which is replace by "/" to create a local folder
+        self._local_path = self._data_path / pathlib.Path(str(self._uri).replace("://", "/"))
+
+        if self._local_path.is_file():
+            errmsg = "Invalid URI: it cannot be a file."
+            raise ValueError(errmsg) from None
+
+        # Check if our data is local/remote
+        is_local = self._annotation_project_config is None
+
+        # If _local_path does not exist, it must be a remote URI; create a local folder
         if not self._local_path.exists():
-            raise FileNotFoundError(f"The specified URI/local_path does not exist: {self._local_path}")
-        if self._local_path.is_dir():
-            self._prepare_dataset()
-        elif self._local_path.is_file():
-            raise ValueError("Invalid URI/local_path: must be a directory.")
+            if is_local:
+                errmsg = f"The specified URI does not exist: {self._local_path}"
+                raise FileNotFoundError(errmsg) from None
+            else:
+                self._local_path.mkdir(parents=True, exist_ok=True)
 
-    def _prepare_dataset(self) -> None:
+        # Route to dataset preparation: local or remote
+        if is_local:
+            self._prepare_local_dataset()
+        else:
+            self._prepare_remote_dataset()
+
+    def _prepare_local_dataset(self) -> None:
         self._folder_names = [d.name for d in self._local_path.iterdir() if d.is_dir()]
         if not self._folder_names:
             raise ValueError("The directory does not contain any subfolders (classes).")
 
         # Check consistency folder-class-label
-        # - If there are no folder_labels, use the folder names as labels
-        if len(self._folder_labels) < 1:
-            self._folder_labels = {folder_name: i for i, folder_name in enumerate(self._folder_names)}
-        # - All folder_labels (mapping from config) must be in folder_names (directory list)
-        for folder_name in self._folder_labels:
+        # - If there are no data_label_mapping, use the folder names as labels
+        if len(self._data_label_mapping) < 1:
+            self._data_label_mapping = {folder_name: i for i, folder_name in enumerate(self._folder_names)}
+        # - All data_label_mapping (mapping from config) must be in folder_names (directory list)
+        for folder_name in self._data_label_mapping:
             if folder_name not in self._folder_names:
-                raise ValueError(f"Folder name '{folder_name}' is not in the dataset. Check `folder_labels` and your dataset folder.")  # noqa: E501
-        # - All folder_names (directory list) must be in folder_labels (mapping from config)
+                raise ValueError(f"Folder name '{folder_name}' is not in the dataset. Check `data_label_mapping` and your dataset folder.")  # noqa: E501
+        # - All folder_names (directory list) must be in data_label_mapping (mapping from config)
+        # FIXME: Maybe that's not necessary? We might want to ignore some folders?
         for folder_name in self._folder_names:
-            if folder_name not in self._folder_labels:
-                raise ValueError(f"Folder name '{folder_name}' is not in the dataset. Check `folder_labels` and your dataset folder.")  # noqa: E501
+            if folder_name not in self._data_label_mapping:
+                raise ValueError(f"Folder name '{folder_name}' is not in the dataset. Check `data_label_mapping` and your dataset folder.")  # noqa: E501
         # - If there are no class names, use the folder names, but only if they introduce a new label value
         if self._class_names is None or len(self._class_names) < 1:
             self._class_names = []
             labels = set()
-            for folder, label in self._folder_labels.items():
+            for folder, label in self._data_label_mapping.items():
                 if label not in labels:
                     self._class_names.append(folder)
                     labels.add(label)
-        # - The number of class_names must match the number of values in folder_labels
-        if len(self._class_names) != len(set(self._folder_labels.values())):
-            raise ValueError("The number of class names must match the number of values in `folder_labels`.")
+        # - The number of class_names must match the number of values in data_label_mapping
+        if len(self._class_names) != len(set(self._data_label_mapping.values())):
+            raise ValueError("The number of class names must match the number of values in `data_label_mapping`.")
 
         # Traverse directories and collect filenames and their labels
         if self._load_filenames:
             self.load_filenames()
+
+    def _prepare_remote_dataset(self) -> None:
+        # Instantiate DataRepository
+        if self._data_repository is None:
+            if self._annotation_project_config is not None:
+                self._data_repository = DataRepository(config=self._annotation_project_config)
+            else:
+                raise ValueError("Missing annotation_project config!") from None
+        # Download data
+        self._data_repository.download_data(debug=True)
+        # Get local filepaths and annotated labels
+        # Note:
+        # - Each sample can have several labels (as in Label Studio)
+        # - A label can be in the _data_label_mapping dictionary or not
+        # BUT all that is already handled in get_local_data_filepaths_and_labels!
+        # We simply get a flattened list of local files and their relevant labels :)
+        filepaths, labels = self._data_repository.get_local_data_filepaths_and_labels(
+            only_labels=self._data_label_mapping.keys())
+        # Map labels
+        self._filenames = []
+        self._labels = []
+        for filepath, label in zip(filepaths, labels):
+            self._labels.append(self._data_label_mapping[label])
+            self._filenames.append(filepath)
 
     @property
     def filenames(self) -> List[str]:  # noqa: D102
@@ -419,7 +490,7 @@ class ImageDataset(Dataset):
     def __init__(self,
                  uri: Optional[Union[str, pathlib.Path]] = None,
                  labels: Optional[List[str]] = None,
-                 folder_labels: Optional[Dict] = None,
+                 data_label_mapping: Optional[Dict] = None,
                  yaml_path: Optional[Union[str, pathlib.Path]] = None,
                  data_path: Optional[Union[str, pathlib.Path]] = None,
                  load_filenames: bool = True,
@@ -429,7 +500,7 @@ class ImageDataset(Dataset):
                  transformers: Optional[List[DataTransformer]] = None) -> None:
         super().__init__(uri=uri,
                          labels=labels,
-                         folder_labels=folder_labels,
+                         data_label_mapping=data_label_mapping,
                          yaml_path=yaml_path,
                          data_path=data_path, # converted to DATA_PATH if passed None
                          load_filenames=load_filenames)
