@@ -4,6 +4,7 @@
   - [Introduction](#introduction)
   - [How to Use the Package](#how-to-use-the-package)
     - [Setup](#setup)
+    - [Environment Variables](#environment-variables)
     - [Running the Services and the API](#running-the-services-and-the-api)
   - [Package Structure](#package-structure)
     - [Machine Learning Domain Components](#machine-learning-domain-components)
@@ -85,6 +86,26 @@ pip install -e .
 # And then:
 pip-compile requirements-dev.in
 pip-sync requirements-dev.txt
+```
+
+### Environment Variables
+
+A `.env` file is expected in the root directory with the following variables:
+
+```bash
+# FastAPI
+API_HOST="0.0.0.0"
+API_PORT="8000"
+# MLflow Tracking
+MLFLOW_HOST="0.0.0.0"
+MLFLOW_PORT="5001"
+# ObjectStorage: AWS S3
+AWS_ACCESS_KEY_ID="your_access_key_id"
+AWS_SECRET_ACCESS_KEY="your_secret_access_key"
+AWS_SESSION_TOKEN="your_session_token"
+AWS_DEFAULT_REGION="us-east-1"
+# AnnotationProject: Label Studio
+LABEL_STUDIO_API_TOKEN="your_label_studio_api_token"
 ```
 
 ### Running the Services and the API
@@ -228,18 +249,18 @@ All the domain modules that solve business cases, such as [`blur.py`](./src/doma
 In the following, a brief description of the classes contained in the machine learning modules is provided:
 
 - [`data.py`](./src/domain/shared/data.py)
-  - `DataTransfomer`
-  - `Dataset` and `ImageDataset(DataTransformer)`
+  - `DataTransfomer`: This abstract class is the template for other transformer classes which perform modifications on the data; an example derived class is `ImageResizer`, which resizes an image. The `DataTransformer` is derived from the `sklearn` classes `BaseEstimator` and `TransformerMixin`, so it requires the definition of `fit()` and `transform()` methods, and it can be used in a `sklearn.Pipeline`.
+  - `Dataset` and `ImageDataset(Dataset)`: These classes build and provide sample-label pairs; `Dataset` is for sample filenames and `ImageDataset` for images. The latter can either use a lazy image loader or load the entire dataset, if possible (due to memory limitations).
 - [`estimators.py`](./src/domain/shared/estimators.py)
-  - `Estimator`
-  - `SklearnPipeEstimator(Estimator)`
-  - `RuleBasedModel` and `RuleBasedEstimator(Estimator)`
+  - `Estimator`: This is the abstract or base class for all models that can be `fit()` to the data and `predict()` properties of new samples. All derived classes contain a model, which can belong to any other framework (`sklearn`, `torch`, etc.). Additionally, rule-based models can be supported, too.
+  - `SklearnPipeEstimator(Estimator)`: This is a concrete `Estimator` which contains and operates on a `sklearn.Pipeline` under the hood. We can similarly implement other estimators: `PytorchEstimator`, `ONNXEstimator`, etc.
+  - `RuleBasedModel` and `RuleBasedEstimator(Estimator)`: `RuleBasedEstimator` is an `Estimator` which contains and operates with a `RuleBasedModel`. This `RuleBasedModel` is an abstract class which should be derived to define models that are formed by closed-form algebraic conditions. These conditions should be defined by few parameters and can be as simple as inequalities based on threshold values. The key idea here is that these rule-based models are treated like traditional machine learning models; even though they cannot be trained as such (so their `fit()` method returns the model itself), their parameters can be optimized with hyperparameter tuning.
 - [`training.py`](./src/domain/shared/training.py)
-  - `TrainingArguments`
-  - `Trainer`
+  - `TrainingArguments`: This class is a container of the hyperparameters for the `Estimator`. Since hyperparameter tuning is supported, the class is able to handle hyperparameter spaces as well as concrete/fixed hyperperameter values.
+  - `Trainer`: This class is responsible of running the hyperparameter optimization (with `optuna`) and the training of any `Estimator`. The `ModelTracker` is used by the `Trainer` to log all the metrics and artifacts (by using `mlflow`).
 - [`pipelines.py`](./src/domain/shared/pipelines.py)
-  - `TrainingPipelines`
-  - `InferencePipeline`
+  - `TrainingPipeline`: It takes all objects necessary to train an `Estimator` and runs the actual training with or without hyperparameter optimization. Then, the produced artifacts (the trained model and transformers) are persisted.
+  - `InferencePipeline`: It takes the output artifacts from the `TrainingPipeline` and produces a pipeline object that, given a new input sample, is able to output its prediction.
 
 A detailed relationship of the classes is shown in the following diagram:
 
@@ -247,7 +268,13 @@ A detailed relationship of the classes is shown in the following diagram:
 
 ### Adapters
 
-TBD.
+As mentioned, adapters are interfaces to external services. Currently, these classes are defined:
+
+- [`tracker.py`](./src/adapters/tracker.py): `ModelTracker`. This class is a `mlflow` wrapper which logs metrics, parameters and any kind of artifacts.
+- [`logger.py`](./src/adapters/logger.py): `Logger`. This class is a wrapper of the standard Python `logging`; it can be easily modified to use any other loggers under the hood.
+- [`storage.py`](./src/adapters/storage.py): `ObjectStorage`. This module contains several useful functions to interact with AWS S3. Specifically, `ObjectStorage` represents an S3 bucket.
+- [`annotations.py`](./src/adapters/annotations.py): `AnnotationProject`: This module contains several useful functions to interact with a Label Studio server instance, started as an external service. Specifically, `AnnotationProject` represents a Label Studio project. 
+- [`data_repo.py`](./src/adapters/data_repo.py): `DataReposirtory`. This class uses `ObjectStorage` and `AnnotationProject` to represent a remote distributes dataset, which can be downloaded and passed to `Dataset`, so that it is accessible by any other object/component in the package.
 
 ### Domain Levels and Guidelines to Extend the Package
 
@@ -256,26 +283,28 @@ Once the supporting infrastructure is defined, the goal is to extend the domain 
 We have three hierarchical *domain levels* in the package:
 
 1. **Subdomain**, e.g., the subfolder `image/`, which contains use case modules related to image properties.
-2. **Use case**, e.g., the module `blur.py`, which contains models/estimators that detect blur in images.
-3. **Model/Estimator**, e.g. the blur predictors `LaplacianBlurModel` or the `SklearnPipeEstimator` which takes the features generated by the `GradientExtractor`.
+2. **Use case**, e.g., the module `blur.py`, which contains models/estimators that detect blur in images. In other words, we are trying to address a business case/problem.
+3. **Model/Estimator**, e.g. the blur predictors `LaplacianBlurModel` or the `SklearnPipeEstimator` which takes the features generated by the `GradientExtractor`. In other words, we implement different methods to solve a business problem.
 
 As we can see, only the image subdomain is implemented currently, in which the use case of blur detection is integrated using two models/estimators.
 
 To extend the package focusing on the domain aspects, we can further develop the *domain levels* as follows:
 
-- Model/Estimator level: We can add a new model to the `blur.py` use case module in the `image` subdomain. One example would be implementing a blur detection method using the Fourier transform; a possible recipe could be:
+- Model/Estimator level: We can add a new model to the `blur.py` use case module in the `image` subdomain. One example would be implementing a new method for blur detection using the Fourier transform; a possible recipe could be:
   - Create the `FourierExtractor` `DataTransformer` which performs the Fourier transform to an image and selects relevant features. The example to follow is `GradientExtractor`, implemented in `blur.py`.
   - Feed the features to a `SklearnPipeEstimator`, which contains a classifier. Again, a similar example is implemented in `blur.py`.
 - Use case level: We can add a new use case in the `image` subdomain, e.g., `brightness.py`, which would detect whether the lighting is correct or not an image. Implementing such a module consists in following the current `blur.py` structure and functions.
 - Subdomain level: Add a new subdomain in the same level as `image`, e.g., a new modality folder, such as `3d_model/`. This new folder would contain new modules relative to the new subdomain/modality, which would be implemented following `blur.py`.
 
-We can image much more sophisticated domain use cases:
+We can imagine much more sophisticated domain/business use cases:
 
 - Is the electric wiring correct or not?
 - Is a required object present in the 3D scan or not?
 - etc.
 
 In any case, the current [`blur.py`](./src/domain/image/blur.py) is the reference example which other cases should follow, based on the three *domain levels*.
+
+:warning: The current [`blur.py`](./src/domain/image/blur.py) uses many factory functions to create the ML objects introduced in the section [Machine Learning Domain Components](#machine-learning-domain-components). One straightforward improvement of the current implementation consists in refactoring and generalizing these factory functions to be used by new business case or domain modules.
 
 ### Notes and Conventions
 
@@ -416,6 +445,7 @@ Tested in src.domain.image:
 - [x] Implement `nox` to automate testing and linting.
 - [ ] Implement the cloud infrastructure code.
 - [ ] Increase test coverage.
+- [ ] Refactor and generalize the factory functions in `blur.py` so that they are re-usable by other domain modules, e.g., `brightness.py` (unimplemented).
 - [ ] The `ModelTracker` uses `mlflow.log_artifact()`, not `mlflow.log_model()`, which disables the usage of the MLflow model registry. Change that to use `mlflow.log_model()`.
 - [ ] The `Trainer` should receive a `Dataset` as training argument so that we can use lazy loading of batches during training of ANNs.
 - [ ] Dependencies: not all are needed in the environment definition?
