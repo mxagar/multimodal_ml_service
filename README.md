@@ -22,7 +22,7 @@
 
 ## Introduction
 
-:warning: **Disclaimer: This repository is not about multimodal vision-language models, but about an architecture which enables running multiple models (each of the same of different modalities).**
+:warning: **Disclaimer: This repository is not about multimodal vision-language models, but about an architecture which enables running multiple models (each of the same or different modalities).**
 
 Imagine a construction company that would like to document and validate onsite construction works automatically: skilled workers build different parts of the buildings and they capture images, videos, 3d scans, or even audio clips (e.g., for reverberation assessments) at different stages of the process. We could build an automatic validation service that evaluates the properties of the captured building works; technically, one approach could be to design that service as an API which takes in several data types (or modalities) and predicts their features by using several models.
 
